@@ -1,0 +1,94 @@
+#!/usr/bin/python
+from socket import *
+import thread
+
+connections = []
+
+def handler(clientsocket, clientaddr):
+    data=""
+    conf=0;
+    print "Accepted connection from: ", clientaddr
+    print host
+    c=-1
+    while 1:
+
+        if(clientsocket==None):
+            break
+        try:
+            data = data + clientsocket.recv(1024)
+        except:
+            clientsocket.close()
+            clientsocket=None
+            break
+
+        if not data:
+            break
+        else:
+
+            if ((conf==0) and (data[0]=='4')):
+                print "Auth 1"
+                conf=1;
+                data=data[1:]
+                if data.__len__() == 0:
+                    continue
+            else:
+                if (conf==0):
+                    print "closing on Auth1"
+                    clientsocket.close()
+
+            if (conf==1 and data[0]=='7'):
+                print "Auth 2"
+                conf=2;
+                data=data[1:]
+                if data.__len__() < 2:
+                   continue
+            else:
+                if (conf==1):
+                    print "closing on Auth2"
+                    clientsocket.close()
+
+            if (conf==2 and data.__len__() >= 2):
+                print "channel: " + data[0:2]
+                conf=3;
+                c=data[0:2]
+                data=data[2:]
+                print "OK"
+                connections.append([clientaddr,c,clientsocket])
+                print connections
+
+            if (conf==3):
+                for x in connections:
+                    if (x[1]==c and clientaddr != x[0]):
+                        try:
+                            if (x[2]!=None):
+                                x[2].send(data)
+                        except:
+                            #x[2].close()
+                            x[2]=None
+                            print "not able to send"
+                data=""
+    clientsocket.close()
+    print "End of thread"
+
+
+if __name__ == "__main__":
+
+    host = '0.0.0.0'
+    port = 9999
+    buf = 1024
+
+    addr = (host, port)
+
+    serversocket = socket(AF_INET, SOCK_STREAM)
+
+    serversocket.bind(addr)
+
+    serversocket.listen(2)
+
+    while 1:
+        print "Server is listening for connections\n"
+
+        clientsocket, clientaddr = serversocket.accept()
+        thread.start_new_thread(handler, (clientsocket, clientaddr))
+    serversocket.close()
+
